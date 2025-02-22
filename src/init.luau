@@ -99,8 +99,8 @@ function Tensor.elementWiseOperation(a: Tensor | number, b: Tensor | number, ope
 	elseif type(a) == "number" and type(b) == "number" then
 		error("Cannot perform element-wise operation on two numbers")
 	elseif type(a) == 'table' and type(b) == 'table' then
-		local aDimCount = #a.shape
-		local bDimCount = #b.shape
+		local aDimCount = #(a :: Tensor).shape
+		local bDimCount = #(b :: Tensor).shape
 
 		-- Check that shapes are identical
 		if aDimCount ~= bDimCount then
@@ -108,7 +108,7 @@ function Tensor.elementWiseOperation(a: Tensor | number, b: Tensor | number, ope
 		end
 
 		for i = 1, aDimCount do
-			if a.shape[i] ~= b.shape[i] then
+			if (a :: Tensor).shape[i] ~= (b :: Tensor).shape[i] then
 				error("Shape mismatch: full broadcasting not implemented.")
 			end
 		end
@@ -117,7 +117,6 @@ function Tensor.elementWiseOperation(a: Tensor | number, b: Tensor | number, ope
   
 	local result = Tensor.create(baseTensor.shape, 0)
 
-	-- !!! parallelize
 	for i = 1, baseTensor.shapeProduct do
 		local aElement = if (type(a) == "number") then a else Tensor.readElement(a, i)
 		local bElement = if (type(b) == "number") then b else Tensor.readElement(b, i)
@@ -160,7 +159,6 @@ function Tensor.matMul(a, b)
 
 	local result = Tensor.create({m, p}, 0)
 
-	-- !!! parallelize
 	for i = 1, m do
 		for j = 1, p do
 			local sum = 0
