@@ -108,7 +108,7 @@ function Tensor.elementWiseOperation(a: Tensor | number, b: Tensor | number, ope
 		end
 
 		for i = 1, aDimCount do
-			if aDimCount ~= bDimCount then
+			if a.shape[i] ~= b.shape[i] then
 				error("Shape mismatch: full broadcasting not implemented.")
 			end
 		end
