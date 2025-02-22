@@ -89,14 +89,16 @@ function Tensor.create(shape: TensorShape, fillValue: number | (number) -> numbe
 	}
 end
 
-function Tensor.elementWiseOperation(a, b, operation: (a: number, b: number) -> number)
+function Tensor.elementWiseOperation(a: Tensor | number, b: Tensor | number, operation: (a: number, b: number) -> number)
 	local baseTensor
 
-	if type(a) == "number" then
+	if type(a) == "number" and type(b) ~= "number" then
 		baseTensor = b
-	elseif type(b) == "number" then
+	elseif type(b) == "number" and type(a) ~= "number" then
 		baseTensor = a
-	else
+	elseif type(a) == "number" and type(b) == "number" then
+		error("Cannot perform element-wise operation on two numbers")
+	elseif type(a) == 'table' and type(b) == 'table' then
 		local aDimCount = #a.shape
 		local bDimCount = #b.shape
 
@@ -173,6 +175,88 @@ function Tensor.matMul(a, b)
 	end
 
 	return result
+end
+
+function Tensor.reshape(a: Tensor, newShape: TensorShape)
+	if getShapeProduct(newShape) ~= a.shapeProduct then
+	  	error("New shape must have the same total number of elements as the original tensor.")
+	end
+
+	return { shape = newShape, shapeProduct = getShapeProduct(newShape), data = a.data }
+end
+
+function Tensor.flatten(a: Tensor)
+	return Tensor.reshape(a, {a.shapeProduct})
+end
+
+function Tensor.mean(a: Tensor, axis: any?)
+	if axis then
+	  	error("Mean along a specific axis not implemented.")
+	else
+		local total = 0
+		local n = a.shapeProduct
+	
+		for i = 1, n do
+			total += Tensor.readElement(a, i)
+		end
+
+		return total / n
+	end
+end
+
+function Tensor.variance(a: Tensor, axis)
+	if axis then
+	  	error("Variance along a specific axis not implemented.")
+	else
+		local m = Tensor.mean(a)
+		local sumSq = 0
+
+		local n = a.shapeProduct
+
+		for i = 1, n do
+			local diff = Tensor.readElement(a, i) - m
+			sumSq += diff * diff
+		end
+
+		return sumSq / n
+	end
+end
+
+function Tensor.std(a: Tensor, axis: any?)
+	local var = Tensor.variance(a, axis)
+	return math.sqrt(var)
+end
+
+function Tensor.minMaxNormalize(a: Tensor)
+	local n = a.shapeProduct
+
+	local minVal = Tensor.readElement(a, 1)
+	local maxVal = minVal
+
+	for i = 2, n do
+		local v = Tensor.readElement(a, i)
+		if v < minVal then minVal = v end
+		if v > maxVal then maxVal = v end
+	end
+
+	local range = maxVal - minVal
+
+	if range == 0 then range = 1 end
+
+	return Tensor.elementWiseOperation(a, 0, function(a, _)
+	  	return (a - minVal) / range
+	end)
+end
+  
+function Tensor.zScoreNormalize(a: Tensor)
+	local m = Tensor.mean(a)
+	local s = Tensor.std(a)
+	
+	if s == 0 then s = 1 end
+
+	return Tensor.elementWiseOperation(a, 0, function(a, _)
+	  	return (a - m) / s
+	end)
 end
 
 return Tensor
