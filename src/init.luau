@@ -32,6 +32,52 @@ local function getShapeProduct(shape: TensorShape)
 	return shapeProduct
 end
 
+local function readElement(tensor: Tensor, index: number): number
+	return readf64(tensor.data, (index-1)*8)
+end
+
+local function writeElement(tensor: Tensor, index: number, value: number)
+	writef64(tensor.data, (index-1)*8, value)
+end
+
+local function elementWiseOperation(a: Tensor | number, b: Tensor | number, operation: (a: number, b: number) -> number)
+	local baseTensor
+
+	if type(a) == "number" and type(b) ~= "number" then
+		baseTensor = b
+	elseif type(b) == "number" and type(a) ~= "number" then
+		baseTensor = a
+	elseif type(a) == "number" and type(b) == "number" then
+		error("Cannot perform element-wise operation on two numbers")
+	elseif type(a) == 'table' and type(b) == 'table' then
+		local aDimCount = #(a :: Tensor).shape
+		local bDimCount = #(b :: Tensor).shape
+
+		-- Check that shapes are identical
+		if aDimCount ~= bDimCount then
+			error("Shape mismatch: cannot operate on tensors with different number of dimensions.")
+		end
+
+		for i = 1, aDimCount do
+			if (a :: Tensor).shape[i] ~= (b :: Tensor).shape[i] then
+				error("Shape mismatch: full broadcasting not implemented.")
+			end
+		end
+		baseTensor = a
+	end
+  
+	local result = Tensor.create(baseTensor.shape, 0)
+
+	for i = 1, baseTensor.shapeProduct do
+		local aElement = if (type(a) == "number") then a else readElement(a, i)
+		local bElement = if (type(b) == "number") then b else readElement(b, i)
+
+		writeElement(result, i, operation(aElement, bElement))
+	end
+
+	return result
+end
+
 function Tensor.zeros(shape: TensorShape)
 	return Tensor.create(shape, 0)
 end
@@ -48,14 +94,6 @@ end
 function Tensor.randNum(shape: TensorShape, min: number?, max: number?)
 	min, max = min or 0, max or 1
 	return Tensor.create(shape, function() return RNG:NextNumber(min :: number, max :: number) end)
-end
-
-function Tensor.readElement(tensor: Tensor, index: number): number
-	return readf64(tensor.data, (index-1)*8)
-end
-
-function Tensor.writeElement(tensor: Tensor, index: number, value: number)
-	writef64(tensor.data, (index-1)*8, value)
 end
 
 function Tensor.create(shape: TensorShape, fillValue: number | (number) -> number): Tensor
@@ -89,62 +127,24 @@ function Tensor.create(shape: TensorShape, fillValue: number | (number) -> numbe
 	}
 end
 
-function Tensor.elementWiseOperation(a: Tensor | number, b: Tensor | number, operation: (a: number, b: number) -> number)
-	local baseTensor
-
-	if type(a) == "number" and type(b) ~= "number" then
-		baseTensor = b
-	elseif type(b) == "number" and type(a) ~= "number" then
-		baseTensor = a
-	elseif type(a) == "number" and type(b) == "number" then
-		error("Cannot perform element-wise operation on two numbers")
-	elseif type(a) == 'table' and type(b) == 'table' then
-		local aDimCount = #(a :: Tensor).shape
-		local bDimCount = #(b :: Tensor).shape
-
-		-- Check that shapes are identical
-		if aDimCount ~= bDimCount then
-			error("Shape mismatch: cannot operate on tensors with different number of dimensions.")
-		end
-
-		for i = 1, aDimCount do
-			if (a :: Tensor).shape[i] ~= (b :: Tensor).shape[i] then
-				error("Shape mismatch: full broadcasting not implemented.")
-			end
-		end
-		baseTensor = a
-	end
-  
-	local result = Tensor.create(baseTensor.shape, 0)
-
-	for i = 1, baseTensor.shapeProduct do
-		local aElement = if (type(a) == "number") then a else Tensor.readElement(a, i)
-		local bElement = if (type(b) == "number") then b else Tensor.readElement(b, i)
-
-		Tensor.writeElement(result, i, operation(aElement, bElement))
-	end
-
-	return result
-end
-
 function Tensor.add(a, b)
-	return Tensor.elementWiseOperation(a, b, function(a, b) return a + b end)
+	return elementWiseOperation(a, b, function(a, b) return a + b end)
 end
 
 function Tensor.subtract(a, b)
-	return Tensor.elementWiseOperation(a, b, function(a, b) return a - b end)
+	return elementWiseOperation(a, b, function(a, b) return a - b end)
 end
 
 function Tensor.multiply(a, b)
-	return Tensor.elementWiseOperation(a, b, function(a, b) return a * b end)
+	return elementWiseOperation(a, b, function(a, b) return a * b end)
 end
 
 function Tensor.divide(a, b)
-	return Tensor.elementWiseOperation(a, b, function(a, b) return a / b end)
+	return elementWiseOperation(a, b, function(a, b) return a / b end)
 end
 
 function Tensor.scale(a, scalar)
-	return Tensor.elementWiseOperation(a, scalar, function(a, s) return a * s end)
+	return elementWiseOperation(a, scalar, function(a, s) return a * s end)
 end
 
 function Tensor.matMul(a, b)
@@ -163,12 +163,12 @@ function Tensor.matMul(a, b)
 		for j = 1, p do
 			local sum = 0
 			for k = 1, n do
-				local aElement = Tensor.readElement(a, (i-1)*n + k)
-				local bElement = Tensor.readElement(b, (k-1)*p + j)
+				local aElement = readElement(a, (i-1)*n + k)
+				local bElement = readElement(b, (k-1)*p + j)
 
 				sum += aElement * bElement
 			end
-			Tensor.writeElement(result, (i-1)*p + j, sum)
+			writeElement(result, (i-1)*p + j, sum)
 		end
 	end
 
@@ -192,21 +192,20 @@ function Tensor.mean(a: Tensor)
 	local n = a.shapeProduct
 
 	for i = 1, n do
-		total += Tensor.readElement(a, i)
+		total += readElement(a, i)
 	end
 
 	return total / n
 end
 
 function Tensor.variance(a: Tensor)
-
 	local m = Tensor.mean(a)
 	local sumSq = 0
 
 	local n = a.shapeProduct
 
 	for i = 1, n do
-		local diff = Tensor.readElement(a, i) - m
+		local diff = readElement(a, i) - m
 		sumSq += diff * diff
 	end
 
@@ -221,11 +220,11 @@ end
 function Tensor.minMaxNormalize(a: Tensor)
 	local n = a.shapeProduct
 
-	local minVal = Tensor.readElement(a, 1)
+	local minVal = readElement(a, 1)
 	local maxVal = minVal
 
 	for i = 2, n do
-		local v = Tensor.readElement(a, i)
+		local v = readElement(a, i)
 		if v < minVal then minVal = v end
 		if v > maxVal then maxVal = v end
 	end
@@ -234,7 +233,7 @@ function Tensor.minMaxNormalize(a: Tensor)
 
 	if range == 0 then range = 1 end
 
-	return Tensor.elementWiseOperation(a, 0, function(a, _)
+	return elementWiseOperation(a, 0, function(a, _)
 	  	return (a - minVal) / range
 	end)
 end
@@ -245,7 +244,7 @@ function Tensor.zScoreNormalize(a: Tensor)
 
 	if s == 0 then s = 1 end
 
-	return Tensor.elementWiseOperation(a, 0, function(a, _)
+	return elementWiseOperation(a, 0, function(a, _)
 	  	return (a - m) / s
 	end)
 end
