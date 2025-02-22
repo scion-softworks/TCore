@@ -189,41 +189,34 @@ function Tensor.flatten(a: Tensor)
 	return Tensor.reshape(a, {a.shapeProduct})
 end
 
-function Tensor.mean(a: Tensor, axis: any?)
-	if axis then
-	  	error("Mean along a specific axis not implemented.")
-	else
-		local total = 0
-		local n = a.shapeProduct
-	
-		for i = 1, n do
-			total += Tensor.readElement(a, i)
-		end
+function Tensor.mean(a: Tensor)
+	local total = 0
+	local n = a.shapeProduct
 
-		return total / n
+	for i = 1, n do
+		total += Tensor.readElement(a, i)
 	end
+
+	return total / n
 end
 
-function Tensor.variance(a: Tensor, axis)
-	if axis then
-	  	error("Variance along a specific axis not implemented.")
-	else
-		local m = Tensor.mean(a)
-		local sumSq = 0
+function Tensor.variance(a: Tensor)
 
-		local n = a.shapeProduct
+	local m = Tensor.mean(a)
+	local sumSq = 0
 
-		for i = 1, n do
-			local diff = Tensor.readElement(a, i) - m
-			sumSq += diff * diff
-		end
+	local n = a.shapeProduct
 
-		return sumSq / n
+	for i = 1, n do
+		local diff = Tensor.readElement(a, i) - m
+		sumSq += diff * diff
 	end
+
+	return sumSq / n
 end
 
-function Tensor.std(a: Tensor, axis: any?)
-	local var = Tensor.variance(a, axis)
+function Tensor.std(a: Tensor)
+	local var = Tensor.variance(a)
 	return math.sqrt(var)
 end
 
@@ -251,7 +244,7 @@ end
 function Tensor.zScoreNormalize(a: Tensor)
 	local m = Tensor.mean(a)
 	local s = Tensor.std(a)
-	
+
 	if s == 0 then s = 1 end
 
 	return Tensor.elementWiseOperation(a, 0, function(a, _)
