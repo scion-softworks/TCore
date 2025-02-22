@@ -40,63 +40,7 @@ local function writeElement(tensor: Tensor, index: number, value: number)
 	writef64(tensor.data, (index-1)*8, value)
 end
 
-local function elementWiseOperation(a: Tensor | number, b: Tensor | number, operation: (a: number, b: number) -> number)
-	local baseTensor
-
-	if type(a) == "number" and type(b) ~= "number" then
-		baseTensor = b
-	elseif type(b) == "number" and type(a) ~= "number" then
-		baseTensor = a
-	elseif type(a) == "number" and type(b) == "number" then
-		error("Cannot perform element-wise operation on two numbers")
-	elseif type(a) == 'table' and type(b) == 'table' then
-		local aDimCount = #(a :: Tensor).shape
-		local bDimCount = #(b :: Tensor).shape
-
-		-- Check that shapes are identical
-		if aDimCount ~= bDimCount then
-			error("Shape mismatch: cannot operate on tensors with different number of dimensions.")
-		end
-
-		for i = 1, aDimCount do
-			if (a :: Tensor).shape[i] ~= (b :: Tensor).shape[i] then
-				error("Shape mismatch: full broadcasting not implemented.")
-			end
-		end
-		baseTensor = a
-	end
-  
-	local result = Tensor.create(baseTensor.shape, 0)
-
-	for i = 1, baseTensor.shapeProduct do
-		local aElement = if (type(a) == "number") then a else readElement(a, i)
-		local bElement = if (type(b) == "number") then b else readElement(b, i)
-
-		writeElement(result, i, operation(aElement, bElement))
-	end
-
-	return result
-end
-
-function Tensor.zeros(shape: TensorShape)
-	return Tensor.create(shape, 0)
-end
-
-function Tensor.ones(shape: TensorShape)
-	return Tensor.create(shape, 1)
-end
-
-function Tensor.randInt(shape: TensorShape, min: number?, max: number?)
-	min, max = min or 0, max or 1
-	return Tensor.create(shape, function() return RNG:NextInteger(min :: number, max :: number) end)
-end
-
-function Tensor.randNum(shape: TensorShape, min: number?, max: number?)
-	min, max = min or 0, max or 1
-	return Tensor.create(shape, function() return RNG:NextNumber(min :: number, max :: number) end)
-end
-
-function Tensor.create(shape: TensorShape, fillValue: number | (number) -> number): Tensor
+local function create(shape: TensorShape, fillValue: number | (number) -> number): Tensor
 	local shapeProduct = getShapeProduct(shape)
 	
 	local bufferSize = (shapeProduct * 8)
@@ -127,29 +71,85 @@ function Tensor.create(shape: TensorShape, fillValue: number | (number) -> numbe
 	}
 end
 
-function Tensor.add(a, b)
+local function elementWiseOperation(a: Tensor | number, b: Tensor | number, operation: (a: number, b: number) -> number)
+	local baseTensor
+
+	if type(a) == "number" and type(b) ~= "number" then
+		baseTensor = b
+	elseif type(b) == "number" and type(a) ~= "number" then
+		baseTensor = a
+	elseif type(a) == "number" and type(b) == "number" then
+		error("Cannot perform element-wise operation on two numbers")
+	elseif type(a) == 'table' and type(b) == 'table' then
+		local aDimCount = #(a :: Tensor).shape
+		local bDimCount = #(b :: Tensor).shape
+
+		-- Check that shapes are identical
+		if aDimCount ~= bDimCount then
+			error("Shape mismatch: cannot operate on tensors with different number of dimensions.")
+		end
+
+		for i = 1, aDimCount do
+			if (a :: Tensor).shape[i] ~= (b :: Tensor).shape[i] then
+				error("Shape mismatch: full broadcasting not implemented.")
+			end
+		end
+		baseTensor = a
+	end
+  
+	local result = create(baseTensor.shape, 0)
+
+	for i = 1, baseTensor.shapeProduct do
+		local aElement = if (type(a) == "number") then a else readElement(a, i)
+		local bElement = if (type(b) == "number") then b else readElement(b, i)
+
+		writeElement(result, i, operation(aElement, bElement))
+	end
+
+	return result
+end
+
+local function zeros(shape: TensorShape)
+	return create(shape, 0)
+end
+
+local function ones(shape: TensorShape)
+	return create(shape, 1)
+end
+
+local function randInt(shape: TensorShape, min: number?, max: number?)
+	min, max = min or 0, max or 1
+	return create(shape, function() return RNG:NextInteger(min :: number, max :: number) end)
+end
+
+local function randNum(shape: TensorShape, min: number?, max: number?)
+	min, max = min or 0, max or 1
+	return create(shape, function() return RNG:NextNumber(min :: number, max :: number) end)
+end
+
+local function add(a, b)
 	return elementWiseOperation(a, b, function(a, b) return a + b end)
 end
 
-function Tensor.subtract(a, b)
+local function subtract(a, b)
 	return elementWiseOperation(a, b, function(a, b) return a - b end)
 end
 
-function Tensor.multiply(a, b)
+local function multiply(a, b)
 	return elementWiseOperation(a, b, function(a, b) return a * b end)
 end
 
-function Tensor.divide(a, b)
+local function divide(a, b)
 	return elementWiseOperation(a, b, function(a, b) return a / b end)
 end
 
-function Tensor.scale(a, scalar)
+local function scale(a, scalar)
 	return elementWiseOperation(a, scalar, function(a, s) return a * s end)
 end
 
-function Tensor.matMul(a, b)
+local function matMul(a, b)
 	if #a.shape ~= 2 or #b.shape ~= 2 then
-	  	error("Tensor.matMul only supports 2D tensors (matrices)")
+	  	error("matMul only supports 2D tensors (matrices)")
 	end
 
 	local m, n = a.shape[1], a.shape[2]
@@ -157,7 +157,7 @@ function Tensor.matMul(a, b)
 
 	if n ~= nB then error("Inner dimensions must match for matrix multiplication") end
 
-	local result = Tensor.create({m, p}, 0)
+	local result = create({m, p}, 0)
 
 	for i = 1, m do
 		for j = 1, p do
@@ -175,7 +175,7 @@ function Tensor.matMul(a, b)
 	return result
 end
 
-function Tensor.reshape(a: Tensor, newShape: TensorShape)
+local function reshape(a: Tensor, newShape: TensorShape)
 	if getShapeProduct(newShape) ~= a.shapeProduct then
 	  	error("New shape must have the same total number of elements as the original tensor.")
 	end
@@ -183,11 +183,11 @@ function Tensor.reshape(a: Tensor, newShape: TensorShape)
 	return { shape = newShape, shapeProduct = getShapeProduct(newShape), data = a.data }
 end
 
-function Tensor.flatten(a: Tensor)
-	return Tensor.reshape(a, {a.shapeProduct})
+local function flatten(a: Tensor)
+	return reshape(a, {a.shapeProduct})
 end
 
-function Tensor.mean(a: Tensor)
+local function mean(a: Tensor)
 	local total = 0
 	local n = a.shapeProduct
 
@@ -198,8 +198,8 @@ function Tensor.mean(a: Tensor)
 	return total / n
 end
 
-function Tensor.variance(a: Tensor)
-	local m = Tensor.mean(a)
+local function variance(a: Tensor)
+	local m = mean(a)
 	local sumSq = 0
 
 	local n = a.shapeProduct
@@ -212,12 +212,12 @@ function Tensor.variance(a: Tensor)
 	return sumSq / n
 end
 
-function Tensor.std(a: Tensor)
-	local var = Tensor.variance(a)
+local function std(a: Tensor)
+	local var = variance(a)
 	return math.sqrt(var)
 end
 
-function Tensor.minMaxNormalize(a: Tensor)
+local function minMaxNormalize(a: Tensor)
 	local n = a.shapeProduct
 
 	local minVal = readElement(a, 1)
@@ -238,9 +238,9 @@ function Tensor.minMaxNormalize(a: Tensor)
 	end)
 end
   
-function Tensor.zScoreNormalize(a: Tensor)
-	local m = Tensor.mean(a)
-	local s = Tensor.std(a)
+local function zScoreNormalize(a: Tensor)
+	local m = mean(a)
+	local s = std(a)
 
 	if s == 0 then s = 1 end
 
@@ -248,5 +248,24 @@ function Tensor.zScoreNormalize(a: Tensor)
 	  	return (a - m) / s
 	end)
 end
+
+Tensor.create = create
+Tensor.zeros = zeros
+Tensor.ones = ones
+Tensor.randInt = randInt
+Tensor.randNum = randNum
+Tensor.add = add
+Tensor.subtract = subtract
+Tensor.multiply = multiply
+Tensor.divide = divide
+Tensor.scale = scale
+Tensor.matMul = matMul
+Tensor.reshape = reshape
+Tensor.flatten = flatten
+Tensor.mean = mean
+Tensor.variance = variance
+Tensor.std = std
+Tensor.minMaxNormalize = minMaxNormalize
+Tensor.zScoreNormalize = zScoreNormalize
 
 return Tensor
