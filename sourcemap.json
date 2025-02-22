@@ -1,0 +1,1 @@
+{"name":"TCore-dev","className":"DataModel","filePaths":["dev.project.json"],"children":[{"name":"ServerScriptService","className":"ServerScriptService","children":[{"name":"TCore","className":"ModuleScript","filePaths":["src\\init.luau"]}]}]}

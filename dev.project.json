@@ -1,0 +1,12 @@
+{
+	"name": "TCore-dev",
+	"tree": {
+	  "$className": "DataModel",
+	  
+	  "ServerScriptService": {
+		"TCore": {
+			"$path": "src"
+		}
+	  }
+	}
+  }
