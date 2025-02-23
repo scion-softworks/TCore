@@ -1,6 +1,6 @@
 [package]
 name = "artzified/tcore"
-version = "1.6.2"
+version = "1.6.3"
 registry = "https://github.com/UpliftGames/wally-index"
 realm = "shared"
 
