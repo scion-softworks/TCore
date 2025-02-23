@@ -132,6 +132,8 @@ local function create(shape: TensorShape, fillValue: number | (number) -> number
 end
 
 local function elementWiseOperation(a: Tensor | number, b: Tensor | number, operation: (a: number, b: number) -> number)
+	assert(type(a) ~= 'number' and type(b) ~= 'number', 'At least one of the inputs must be a tensor')
+
 	-- If one of the inputs is a number, treat it as a scalar and broadcast it.
 	if type(a) == "number" or type(b) == "number" then
 		local baseTensor = if (type(a) == "number" and type(b) == 'table') then (b :: Tensor) else (a :: Tensor)
@@ -332,27 +334,6 @@ local function argmax(a: Tensor): (number, number)
 	return bestIndex, bestVal
 end
 
-local function printTensor(a: Tensor)
-	local parts = {}
-	table.insert(parts, 'Tensor(shape: {')
-	for i, dim in ipairs(a.shape) do
-		table.insert(parts, tostring(dim))
-		if i < #a.shape then
-			table.insert(parts, ', ')
-		end
-	end
-	table.insert(parts, '}, data: [')
-	for i = 1, a.shapeProduct do
-		table.insert(parts, tostring(readElement(a, i)))
-		if i < a.shapeProduct then
-			table.insert(parts, ', ')
-		end
-	end
-	table.insert(parts, '])')
-	
-	print(table.concat(parts))
-end
-
 local function transpose(a: Tensor)
 	assert(#a.shape == 2, "Transpose only supports 2D tensors.")
 
@@ -397,6 +378,29 @@ local function toFlatArray(a: Tensor): {number}
 	end
 
 	return result
+end
+
+local function printTensor(a: Tensor)
+	local function formatNestedTable(t: any): string
+		if type(t) ~= "table" then
+			return tostring(t)
+		end
+		local parts = {}
+		table.insert(parts, "{")
+		for i, v in ipairs(t) do
+			table.insert(parts, formatNestedTable(v))
+			if i < #t then
+				table.insert(parts, ", ")
+			end
+		end
+		table.insert(parts, "}\n")
+		return table.concat(parts)
+	end
+
+    local shapeStr = `\{ {table.concat(a.shape, ", ")} \}`
+    local nestedData = toNestedTable(a)
+    local dataStr = formatNestedTable(nestedData)
+    print(`Tensor(shape: {shapeStr}, data: {dataStr})`)
 end
 
 Tensor.readElement = readElement
