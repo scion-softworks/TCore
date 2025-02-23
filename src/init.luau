@@ -132,7 +132,7 @@ local function create(shape: TensorShape, fillValue: number | (number) -> number
 end
 
 local function elementWiseOperation(a: Tensor | number, b: Tensor | number, operation: (a: number, b: number) -> number)
-	assert(type(a) ~= 'number' and type(b) ~= 'number', 'At least one of the inputs must be a tensor')
+	assert(type(a) ~= "number" or type(b) ~= "number", "At least one of the inputs must be a tensor")
 
 	-- If one of the inputs is a number, treat it as a scalar and broadcast it.
 	if type(a) == "number" or type(b) == "number" then
