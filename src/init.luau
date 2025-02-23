@@ -32,6 +32,66 @@ local function getShapeProduct(shape: TensorShape)
 	return shapeProduct
 end
 
+-- Compute the broadcasted shape for two tensor shapes
+local function broadcastShapes(shapeA: {number}, shapeB: {number}): {number}
+	local lenA = #shapeA
+	local lenB = #shapeB
+
+	local maxLen = math.max(lenA, lenB)
+	local result = {}
+
+	for i = 1, maxLen do
+		local aDim = shapeA[lenA - i + 1] or 1
+		local bDim = shapeB[lenB - i + 1] or 1
+
+		if aDim ~= bDim and aDim ~= 1 and bDim ~= 1 then
+			error("Shapes are not broadcastable")
+		end
+
+		result[maxLen - i + 1] = math.max(aDim, bDim)
+	end
+
+	return result
+end
+
+-- Convert a linear index to a multi-index for a given shape
+local function linearToMultiIndex(linear: number, shape: {number}): {number}
+	local multi = {}
+	local remainder = linear - 1
+	for i = #shape, 1, -1 do
+		local idx = (remainder % shape[i]) + 1
+		multi[i] = idx
+		remainder = math.floor(remainder / shape[i])
+	end
+	return multi
+end
+
+-- Convert a multi-index (array of indices) to a linear index given a shape
+local function multiIndexToLinearIndex(multi: {number}, shape: {number}): number
+	local index = 0
+	local stride = 1
+	for i = #shape, 1, -1 do
+		index = index + (multi[i] - 1) * stride
+		stride = stride * shape[i]
+	end
+	return index + 1
+end
+
+-- Given a broadcast multi-index and the original tensor shape, compute the corresponding linear index for that tensor
+local function getTensorIndex(broadcastMulti: {number}, tensorShape: {number}): number
+	local tensorMulti = {}
+	-- Align dimensions from the right.
+	local offset = #broadcastMulti - #tensorShape
+	for i = 1, #tensorShape do
+		if tensorShape[i] == 1 then
+			tensorMulti[i] = 1
+		else
+			tensorMulti[i] = broadcastMulti[i + offset]
+		end
+	end
+	return multiIndexToLinearIndex(tensorMulti, tensorShape)
+end
+
 local function readElement(tensor: Tensor, index: number): number
 	return readf64(tensor.data, (index-1)*8)
 end
@@ -72,37 +132,31 @@ local function create(shape: TensorShape, fillValue: number | (number) -> number
 end
 
 local function elementWiseOperation(a: Tensor | number, b: Tensor | number, operation: (a: number, b: number) -> number)
-	local baseTensor
-
-	if type(a) == 'number' and type(b) ~= 'number' then
-		baseTensor = b
-	elseif type(b) == 'number' and type(a) ~= 'number' then
-		baseTensor = a
-	elseif type(a) == 'number' and type(b) == 'number' then
-		error('Cannot perform element-wise operation on two numbers')
-	elseif type(a) == 'table' and type(b) == 'table' then
-		local aDimCount = #(a :: Tensor).shape
-		local bDimCount = #(b :: Tensor).shape
-
-		-- Check that shapes are identical
-		if aDimCount ~= bDimCount then
-			error('Shape mismatch: cannot operate on tensors with different number of dimensions.')
+	-- If one of the inputs is a number, treat it as a scalar and broadcast it.
+	if type(a) == "number" or type(b) == "number" then
+		local baseTensor = if (type(a) == "number" and type(b) == 'table') then (b :: Tensor) else (a :: Tensor)
+		local result = create(baseTensor.shape, 0)
+		for i = 1, baseTensor.shapeProduct do
+			local aElement = if (type(a) == "number") then a else readElement((a :: Tensor), i)
+			local bElement = if (type(b) == "number") then b else readElement((b :: Tensor), i)
+			writeElement(result, i, operation(aElement, bElement))
 		end
-
-		for i = 1, aDimCount do
-			if (a :: Tensor).shape[i] ~= (b :: Tensor).shape[i] then
-				error('Shape mismatch: full broadcasting not implemented.')
-			end
-		end
-		baseTensor = a
+		return result
 	end
-  
-	local result = create(baseTensor.shape, 0)
 
-	for i = 1, baseTensor.shapeProduct do
-		local aElement = if (type(a) == 'number') then a else readElement(a, i)
-		local bElement = if (type(b) == 'number') then b else readElement(b, i)
+	local tensorA = a :: Tensor
+	local tensorB = b :: Tensor
 
+	local broadcastShape = broadcastShapes(tensorA.shape, tensorB.shape)
+	local broadcastProduct = getShapeProduct(broadcastShape)
+	local result = create(broadcastShape, 0)
+
+	for i = 1, broadcastProduct do
+		local multi = linearToMultiIndex(i, broadcastShape)
+		local indexA = getTensorIndex(multi, tensorA.shape)
+		local indexB = getTensorIndex(multi, tensorB.shape)
+		local aElement = readElement(tensorA, indexA)
+		local bElement = readElement(tensorB, indexB)
 		writeElement(result, i, operation(aElement, bElement))
 	end
 
