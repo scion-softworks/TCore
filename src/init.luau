@@ -249,6 +249,25 @@ local function zScoreNormalize(a: Tensor)
 	end)
 end
 
+local function argmax(a: Tensor): (number, number)
+	if a.shapeProduct == 0 then 
+		error("Tensor has no elements")
+	end
+
+	local bestIndex = 1
+	local bestVal = readElement(a, 1)
+  
+	for i = 2, a.shapeProduct do
+		local v = readElement(a, i)
+		if v > bestVal then
+			bestVal = v
+			bestIndex = i
+		end
+	end
+  
+	return bestIndex, bestVal
+end
+
 Tensor.create = create
 Tensor.zeros = zeros
 Tensor.ones = ones
@@ -267,5 +286,6 @@ Tensor.variance = variance
 Tensor.std = std
 Tensor.minMaxNormalize = minMaxNormalize
 Tensor.zScoreNormalize = zScoreNormalize
+Tensor.argmax = argmax
 
 return Tensor
