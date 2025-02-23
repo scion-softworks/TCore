@@ -404,6 +404,8 @@ local function printTensor(a: Tensor)
     local shapeStr = `\{{table.concat(a.shape, ", ")}\}`
 	local nestedData = toNestedTable(a)
 	local dataStr = formatNestedTable(nestedData, 0)
+	dataStr = dataStr:gsub("\n$", "")
+	
 	print(`Tensor(shape: {shapeStr}, data:\n{dataStr})`)
 end
 
