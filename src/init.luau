@@ -426,16 +426,18 @@ local function toNestedTable<T>(a: Tensor): {T}
 end
 
 -- If any argument is not a tensor but is a nested table of type {T}, convert it.
-local function convertToTensorIfAppropriate<T>(...: (Tensor | {T})): Tensor
-    for _, arg in {...} do
+local function convertToTensorIfAppropriate<T>(...: (Tensor | {T})): (...Tensor)
+    local result = {}
+	
+	for i, arg in {...} do
         if type(arg) == "table" and (arg :: any).data then
-            return arg :: Tensor
+            result[i] = arg :: Tensor
         else
-            return fromNestedTable(arg :: {T})
+            result[i] =  fromNestedTable(arg :: {T})
         end
     end
 
-    error("No valid tensor or nested table provided")
+	return unpack(result)
 end
 
 local function printTensor(a: Tensor)
