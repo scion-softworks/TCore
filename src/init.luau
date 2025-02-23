@@ -289,7 +289,7 @@ local function printTensor(a: Tensor)
 	print(table.concat(parts))
 end
 
-local function toArray(a: Tensor): {number}
+local function toFlatArray(a: Tensor): {number}
 	local result = {}
 
 	for i = 1, a.shapeProduct do
@@ -321,7 +321,7 @@ Tensor.minMaxNormalize = minMaxNormalize
 Tensor.zScoreNormalize = zScoreNormalize
 Tensor.argmax = argmax
 Tensor.print = printTensor
-Tensor.toArray = toArray
+Tensor.toFlatArray = toFlatArray
 Tensor.elementWiseOperation = elementWiseOperation
 
 return Tensor
