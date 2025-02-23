@@ -353,6 +353,22 @@ local function printTensor(a: Tensor)
 	print(table.concat(parts))
 end
 
+local function transpose(a: Tensor)
+	assert(#a.shape == 2, "Transpose only supports 2D tensors.")
+
+	local m, n = a.shape[1], a.shape[2]
+	local result = create({n, m}, 0)
+
+	for i = 1, m do
+		for j = 1, n do
+			local val = readElement(a, (i - 1) * n + j)
+			writeElement(result, (j - 1) * m + i, val)
+		end
+	end
+
+	return result
+end
+
 local function toNestedTable(a: Tensor): {any}
     local currentIndex = 1
 
@@ -406,6 +422,7 @@ Tensor.minMaxNormalize = minMaxNormalize
 Tensor.zScoreNormalize = zScoreNormalize
 Tensor.argmax = argmax
 Tensor.print = printTensor
+Tensor.transpose = transpose
 Tensor.toFlatArray = toFlatArray
 Tensor.toNestedTable = toNestedTable
 Tensor.elementWiseOperation = elementWiseOperation
