@@ -289,6 +289,26 @@ local function printTensor(a: Tensor)
 	print(table.concat(parts))
 end
 
+local function toNestedTable(a: Tensor): {any}
+    local currentIndex = 1
+
+    local function fillTable(shape: TensorShape, dim: number): any
+        if dim > #shape then
+            local value = readElement(a, currentIndex)
+            currentIndex = currentIndex + 1
+            return value
+        end
+
+        local result = {}
+        for i = 1, shape[dim] do
+            table.insert(result, fillTable(shape, dim + 1))
+        end
+        return result
+    end
+
+    return fillTable(a.shape, 1)
+end
+
 local function toFlatArray(a: Tensor): {number}
 	local result = {}
 
@@ -322,6 +342,7 @@ Tensor.zScoreNormalize = zScoreNormalize
 Tensor.argmax = argmax
 Tensor.print = printTensor
 Tensor.toFlatArray = toFlatArray
+Tensor.toNestedTable = toNestedTable
 Tensor.elementWiseOperation = elementWiseOperation
 
 return Tensor
