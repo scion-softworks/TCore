@@ -381,26 +381,30 @@ local function toFlatArray(a: Tensor): {number}
 end
 
 local function printTensor(a: Tensor)
-	local function formatNestedTable(t: any): string
+	local function formatNestedTable(t: any, indent: number?): string
+		indent = indent or 0
+		local indentStr = string.rep("  ", (indent :: number))
 		if type(t) ~= "table" then
 			return tostring(t)
 		end
 		local parts = {}
-		table.insert(parts, "{")
+		table.insert(parts, "{\n")
 		for i, v in ipairs(t) do
-			table.insert(parts, formatNestedTable(v))
+			table.insert(parts, `{indentStr}  {formatNestedTable(v, (indent :: number) + 1)}`)
 			if i < #t then
-				table.insert(parts, ", ")
+				table.insert(parts, ",\n")
+			else
+				table.insert(parts, "\n")
 			end
 		end
-		table.insert(parts, "}\n")
+		table.insert(parts, `{indentStr}}`)
 		return table.concat(parts)
 	end
 
-    local shapeStr = `\{ {table.concat(a.shape, ", ")} \}`
-    local nestedData = toNestedTable(a)
-    local dataStr = formatNestedTable(nestedData)
-    print(`Tensor(shape: {shapeStr}, data: {dataStr})`)
+    local shapeStr = `\{{table.concat(a.shape, ", ")}\}`
+	local nestedData = toNestedTable(a)
+	local dataStr = formatNestedTable(nestedData, 0)
+	print(`Tensor(shape: {shapeStr}, data:\n{dataStr})`)
 end
 
 local function map(a: Tensor, func: (number) -> number): Tensor
