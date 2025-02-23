@@ -45,7 +45,7 @@ local function create(shape: TensorShape, fillValue: number | (number) -> number
 	
 	local bufferSize = (shapeProduct * 8)
 	if bufferSize >= 1073741824 then 
-		error(`Buffer size ({bufferSize} bytes) exceeds maximum allowed (1 GiB or 1073741824 bytes)". Adjust your shape to be below the limit`)
+		error(`Buffer size ({bufferSize} bytes) exceeds maximum allowed (1 GiB or 1073741824 bytes)'. Adjust your shape to be below the limit`)
 	end
 	
 	local success, buf = pcall(buffer.create, bufferSize)
@@ -74,24 +74,24 @@ end
 local function elementWiseOperation(a: Tensor | number, b: Tensor | number, operation: (a: number, b: number) -> number)
 	local baseTensor
 
-	if type(a) == "number" and type(b) ~= "number" then
+	if type(a) == 'number' and type(b) ~= 'number' then
 		baseTensor = b
-	elseif type(b) == "number" and type(a) ~= "number" then
+	elseif type(b) == 'number' and type(a) ~= 'number' then
 		baseTensor = a
-	elseif type(a) == "number" and type(b) == "number" then
-		error("Cannot perform element-wise operation on two numbers")
+	elseif type(a) == 'number' and type(b) == 'number' then
+		error('Cannot perform element-wise operation on two numbers')
 	elseif type(a) == 'table' and type(b) == 'table' then
 		local aDimCount = #(a :: Tensor).shape
 		local bDimCount = #(b :: Tensor).shape
 
 		-- Check that shapes are identical
 		if aDimCount ~= bDimCount then
-			error("Shape mismatch: cannot operate on tensors with different number of dimensions.")
+			error('Shape mismatch: cannot operate on tensors with different number of dimensions.')
 		end
 
 		for i = 1, aDimCount do
 			if (a :: Tensor).shape[i] ~= (b :: Tensor).shape[i] then
-				error("Shape mismatch: full broadcasting not implemented.")
+				error('Shape mismatch: full broadcasting not implemented.')
 			end
 		end
 		baseTensor = a
@@ -100,8 +100,8 @@ local function elementWiseOperation(a: Tensor | number, b: Tensor | number, oper
 	local result = create(baseTensor.shape, 0)
 
 	for i = 1, baseTensor.shapeProduct do
-		local aElement = if (type(a) == "number") then a else readElement(a, i)
-		local bElement = if (type(b) == "number") then b else readElement(b, i)
+		local aElement = if (type(a) == 'number') then a else readElement(a, i)
+		local bElement = if (type(b) == 'number') then b else readElement(b, i)
 
 		writeElement(result, i, operation(aElement, bElement))
 	end
@@ -149,13 +149,13 @@ end
 
 local function matMul(a, b)
 	if #a.shape ~= 2 or #b.shape ~= 2 then
-	  	error("matMul only supports 2D tensors (matrices)")
+	  	error('matMul only supports 2D tensors (matrices)')
 	end
 
 	local m, n = a.shape[1], a.shape[2]
 	local nB, p = b.shape[1], b.shape[2]
 
-	if n ~= nB then error("Inner dimensions must match for matrix multiplication") end
+	if n ~= nB then error('Inner dimensions must match for matrix multiplication') end
 
 	local result = create({m, p}, 0)
 
@@ -177,7 +177,7 @@ end
 
 local function reshape(a: Tensor, newShape: TensorShape)
 	if getShapeProduct(newShape) ~= a.shapeProduct then
-	  	error("New shape must have the same total number of elements as the original tensor.")
+	  	error('New shape must have the same total number of elements as the original tensor.')
 	end
 
 	return { shape = newShape, shapeProduct = getShapeProduct(newShape), data = a.data }
@@ -251,7 +251,7 @@ end
 
 local function argmax(a: Tensor): (number, number)
 	if a.shapeProduct == 0 then 
-		error("Tensor has no elements")
+		error('Tensor has no elements')
 	end
 
 	local bestIndex = 1
@@ -266,6 +266,27 @@ local function argmax(a: Tensor): (number, number)
 	end
   
 	return bestIndex, bestVal
+end
+
+local function printTensor(a: Tensor)
+	local parts = {}
+	table.insert(parts, 'Tensor(shape: {')
+	for i, dim in ipairs(a.shape) do
+		table.insert(parts, tostring(dim))
+		if i < #a.shape then
+			table.insert(parts, ', ')
+		end
+	end
+	table.insert(parts, '}, data: [')
+	for i = 1, a.shapeProduct do
+		table.insert(parts, tostring(readElement(a, i)))
+		if i < a.shapeProduct then
+			table.insert(parts, ', ')
+		end
+	end
+	table.insert(parts, '])')
+	
+	print(table.concat(parts))
 end
 
 Tensor.readElement = readElement
@@ -289,5 +310,6 @@ Tensor.std = std
 Tensor.minMaxNormalize = minMaxNormalize
 Tensor.zScoreNormalize = zScoreNormalize
 Tensor.argmax = argmax
+Tensor.print = printTensor
 
 return Tensor
