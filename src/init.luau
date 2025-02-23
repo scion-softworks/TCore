@@ -403,6 +403,17 @@ local function printTensor(a: Tensor)
     print(`Tensor(shape: {shapeStr}, data: {dataStr})`)
 end
 
+local function map(a: Tensor, func: (number) -> number): Tensor
+    local result = create(a.shape, 0)
+
+    for i = 1, a.shapeProduct do
+        local val = readElement(a, i)
+        writeElement(result, i, func(val))
+    end
+
+    return result
+end
+
 Tensor.readElement = readElement
 Tensor.writeElement = writeElement
 Tensor.create = create
@@ -430,5 +441,6 @@ Tensor.transpose = transpose
 Tensor.toFlatArray = toFlatArray
 Tensor.toNestedTable = toNestedTable
 Tensor.elementWiseOperation = elementWiseOperation
+Tensor.map = map
 
 return Tensor
