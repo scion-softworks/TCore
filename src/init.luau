@@ -350,7 +350,29 @@ local function transpose(a: Tensor)
 	return result
 end
 
-local function fromNestedTable(a: {any})
+local function toFlatArray(a: Tensor): {number}
+	local result = {}
+
+	for i = 1, a.shapeProduct do
+		table.insert(result, readElement(a, i))
+	end
+
+	return result
+end
+
+local function map(a: Tensor, func: (number) -> number): Tensor
+    local result = create(a.shape, 0)
+
+    for i = 1, a.shapeProduct do
+        local val = readElement(a, i)
+        writeElement(result, i, func(val))
+    end
+
+    return result
+end
+
+local function fromNestedTable(a: {any}): Tensor
+    -- Recursively determine the shape (assumes a rectangular table)
     local function getShape(t: any): {number}
         local shape = {}
         local current = t
@@ -361,9 +383,10 @@ local function fromNestedTable(a: {any})
         return shape
     end
 
-    local function flatten(t: any): {any}
+    -- Recursively flatten the nested table into a flat array of type {T}
+    local function flatten(t: any)
         local flat = {}
-        local function rec(x)
+        local function rec(x: any)
             if type(x) ~= "table" then
                 table.insert(flat, x)
             else
@@ -378,42 +401,41 @@ local function fromNestedTable(a: {any})
 
     local shape = getShape(a)
     local flat = flatten(a)
-
-    local tensor = create(shape, function(i: number)
+    local tensor = create(shape, function(i: number): number
         return flat[i]
     end)
-
     return tensor
 end
 
-local function toNestedTable(a: Tensor): {any}
+-- Converts a Tensor back into a nested table of type {T}
+local function toNestedTable<T>(a: Tensor): {T}
     local currentIndex = 1
-
     local function fillTable(shape: TensorShape, dim: number): any
         if dim > #shape then
             local value = readElement(a, currentIndex)
             currentIndex = currentIndex + 1
             return value
         end
-
         local result = {}
         for i = 1, shape[dim] do
             table.insert(result, fillTable(shape, dim + 1))
         end
         return result
     end
-
     return fillTable(a.shape, 1)
 end
 
-local function toFlatArray(a: Tensor): {number}
-	local result = {}
+-- If any argument is not a tensor but is a nested table of type {T}, convert it.
+local function convertToTensorIfAppropriate<T>(...: (Tensor | {T})): Tensor
+    for _, arg in {...} do
+        if type(arg) == "table" and (arg :: any).data then
+            return arg :: Tensor
+        else
+            return fromNestedTable(arg :: {T})
+        end
+    end
 
-	for i = 1, a.shapeProduct do
-		table.insert(result, readElement(a, i))
-	end
-
-	return result
+    error("No valid tensor or nested table provided")
 end
 
 local function printTensor(a: Tensor)
@@ -445,17 +467,6 @@ local function printTensor(a: Tensor)
 	print(`Tensor(shape: {shapeStr}, data:\n{dataStr})`)
 end
 
-local function map(a: Tensor, func: (number) -> number): Tensor
-    local result = create(a.shape, 0)
-
-    for i = 1, a.shapeProduct do
-        local val = readElement(a, i)
-        writeElement(result, i, func(val))
-    end
-
-    return result
-end
-
 Tensor.readElement = readElement
 Tensor.writeElement = writeElement
 Tensor.create = create
@@ -485,5 +496,6 @@ Tensor.toNestedTable = toNestedTable
 Tensor.elementWiseOperation = elementWiseOperation
 Tensor.map = map
 Tensor.fromNestedTable = fromNestedTable
+Tensor.convertToTensorIfAppropriate = convertToTensorIfAppropriate
 
 return Tensor
