@@ -120,7 +120,7 @@ local function create(shape: TensorShape, fillValue: number | (number) -> number
 		end
 	else
 		for i = 0, bufferSize-8, 8 do
-			writef64(buf, i, (fillValue :: (number) -> number)(i))
+			writef64(buf, i, (fillValue :: (number) -> number)((i/8)+1))
 		end
 	end
 
@@ -350,6 +350,42 @@ local function transpose(a: Tensor)
 	return result
 end
 
+local function fromNestedTable(a: {any})
+    local function getShape(t: any): {number}
+        local shape = {}
+        local current = t
+        while type(current) == "table" do
+            table.insert(shape, #current)
+            current = current[1]
+        end
+        return shape
+    end
+
+    local function flatten(t: any): {any}
+        local flat = {}
+        local function rec(x)
+            if type(x) ~= "table" then
+                table.insert(flat, x)
+            else
+                for _, v in ipairs(x) do
+                    rec(v)
+                end
+            end
+        end
+        rec(t)
+        return flat
+    end
+
+    local shape = getShape(a)
+    local flat = flatten(a)
+
+    local tensor = create(shape, function(i: number)
+        return flat[i]
+    end)
+
+    return tensor
+end
+
 local function toNestedTable(a: Tensor): {any}
     local currentIndex = 1
 
@@ -448,5 +484,6 @@ Tensor.toFlatArray = toFlatArray
 Tensor.toNestedTable = toNestedTable
 Tensor.elementWiseOperation = elementWiseOperation
 Tensor.map = map
+Tensor.fromNestedTable = fromNestedTable
 
 return Tensor
