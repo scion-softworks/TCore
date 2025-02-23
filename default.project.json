@@ -1,7 +1,6 @@
 {
   "name": "TCore",
   "tree": {
-    "$className": "DataModel",
     "$path": "src"
   }
 }
