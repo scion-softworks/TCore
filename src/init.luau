@@ -322,5 +322,6 @@ Tensor.zScoreNormalize = zScoreNormalize
 Tensor.argmax = argmax
 Tensor.print = printTensor
 Tensor.toArray = toArray
+Tensor.elementWiseOperation = elementWiseOperation
 
 return Tensor
