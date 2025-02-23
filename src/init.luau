@@ -289,6 +289,16 @@ local function printTensor(a: Tensor)
 	print(table.concat(parts))
 end
 
+local function toArray(a: Tensor): {number}
+	local result = {}
+
+	for i = 1, a.shapeProduct do
+		table.insert(result, readElement(a, i))
+	end
+
+	return result
+end
+
 Tensor.readElement = readElement
 Tensor.writeElement = writeElement
 Tensor.create = create
@@ -311,5 +321,6 @@ Tensor.minMaxNormalize = minMaxNormalize
 Tensor.zScoreNormalize = zScoreNormalize
 Tensor.argmax = argmax
 Tensor.print = printTensor
+Tensor.toArray = toArray
 
 return Tensor
