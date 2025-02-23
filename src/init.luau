@@ -268,6 +268,8 @@ local function argmax(a: Tensor): (number, number)
 	return bestIndex, bestVal
 end
 
+Tensor.readElement = readElement
+Tensor.writeElement = writeElement
 Tensor.create = create
 Tensor.zeros = zeros
 Tensor.ones = ones
