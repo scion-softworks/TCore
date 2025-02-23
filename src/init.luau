@@ -201,6 +201,16 @@ local function scale(a, scalar)
 	return elementWiseOperation(a, scalar, function(a, s) return a * s end)
 end
 
+local function sum(a: Tensor)
+	local total = 0
+
+	for n = 1, a.shapeProduct do
+		total += readElement(a, n)
+	end
+
+	return total
+end
+
 local function matMul(a, b)
 	if #a.shape ~= 2 or #b.shape ~= 2 then
 	  	error('matMul only supports 2D tensors (matrices)')
@@ -385,6 +395,7 @@ Tensor.subtract = subtract
 Tensor.multiply = multiply
 Tensor.divide = divide
 Tensor.scale = scale
+Tensor.sum = sum
 Tensor.matMul = matMul
 Tensor.reshape = reshape
 Tensor.flatten = flatten
