@@ -1,7 +1,0 @@
-[package]
-name = "artzified/tcore"
-version = "1.8.1"
-registry = "https://github.com/UpliftGames/wally-index"
-realm = "shared"
-
-[dependencies]
